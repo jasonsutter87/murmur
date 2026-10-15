@@ -1,0 +1,25 @@
+[package]
+name = "murmur"
+version = "0.1.0"
+edition = "2021"
+description = "Hold-to-talk dictation: speak, and clean text lands wherever your cursor is."
+
+[dependencies]
+murmur-core = { path = "core" }
+anyhow = "1"
+arboard = "3.6"
+dirs = "7"
+enigo = "0.6"
+global-hotkey = "0.8"
+hound = "3"
+libc = "0.2"
+reqwest = { version = "0.13", features = ["blocking", "json"] }
+serde_json = "1"
+tao = "0.37"
+tray-icon = "0.26"
+
+[workspace]
+members = ["core"]
+
+[profile.release]
+lto = "thin"
