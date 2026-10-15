@@ -23,3 +23,6 @@ members = ["core"]
 
 [profile.release]
 lto = "thin"
+
+[patch.crates-io]
+whisper-rs-sys = { path = "vendor/whisper-rs-sys" }

@@ -20,16 +20,7 @@ pub fn ensure_model(dir: &Path, name: &str) -> Result<PathBuf> {
 
     let url = format!("https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-{name}.bin");
     println!("Downloading whisper model {name} (one time)…\n  {url}");
-    let mut resp = reqwest::blocking::Client::builder()
-        .timeout(None)
-        .build()?
-        .get(&url)
-        .send()?
-        .error_for_status()?;
-    let partial = path.with_extension("part");
-    let mut file = std::fs::File::create(&partial)?;
-    std::io::copy(&mut resp, &mut file)?;
-    std::fs::rename(&partial, &path)?;
+    crate::download::fetch(&url, &path, |_, _| {})?;
     println!("Saved to {}", path.display());
     Ok(path)
 }

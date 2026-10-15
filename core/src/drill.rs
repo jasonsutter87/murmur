@@ -95,6 +95,13 @@ fn is_close(a: &str, b: &str) -> bool {
     longest >= 3 && char_distance(a, b) * 4 <= longest
 }
 
+/// Sentence-level comparison key: same words once case, accents, and
+/// punctuation are ignored.
+pub fn same_words(a: &str, b: &str) -> bool {
+    let key = |s: &str| tokens(s).into_iter().map(|(_, n)| n).collect::<Vec<_>>();
+    key(a) == key(b)
+}
+
 pub fn score(expected: &str, transcript: &str) -> DrillResult {
     let exp = tokens(expected);
     let got = tokens(transcript);
