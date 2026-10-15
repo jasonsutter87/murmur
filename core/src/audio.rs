@@ -67,6 +67,18 @@ impl Recording {
     }
 }
 
+/// True if at least ~150 ms of the clip is loud enough to be speech. Whisper
+/// invents sentences when fed silence, so callers skip it for quiet clips.
+pub fn has_speech(samples: &[f32]) -> bool {
+    const FRAME: usize = WHISPER_RATE as usize / 50; // 20 ms
+    const LOUD_RMS: f32 = 0.015; // about -36 dBFS; room noise sits well below
+    let loud = samples
+        .chunks(FRAME)
+        .filter(|f| (f.iter().map(|s| s * s).sum::<f32>() / f.len() as f32).sqrt() > LOUD_RMS)
+        .count();
+    loud >= 8
+}
+
 fn downmix(samples: &[f32], channels: usize) -> Vec<f32> {
     if channels <= 1 {
         return samples.to_vec();
@@ -158,4 +170,25 @@ pub fn play(samples: &[f32], rate: u32, stop: &std::sync::atomic::AtomicBool) ->
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn silence_and_hum_are_not_speech() {
+        assert!(!has_speech(&vec![0.0; 32_000]));
+        let hum: Vec<f32> = (0..32_000).map(|i| 0.005 * (i as f32 * 0.05).sin()).collect();
+        assert!(!has_speech(&hum));
+    }
+
+    #[test]
+    fn a_loud_half_second_is_speech() {
+        let mut clip = vec![0.0; 32_000];
+        for (i, s) in clip[8_000..16_000].iter_mut().enumerate() {
+            *s = 0.2 * (i as f32 * 0.1).sin();
+        }
+        assert!(has_speech(&clip));
+    }
 }
