@@ -44,10 +44,22 @@ const NUMBERS: [&str; 21] = [
     "diecinueve", "veinte",
 ];
 
-/// Lowercase, strip accents and punctuation, spell out small numbers.
+/// Spanish words for 0–100, accents stripped ("treinta y cinco").
+fn number_words(n: usize) -> Option<String> {
+    const TENS: [&str; 10] = ["", "", "veinte", "treinta", "cuarenta", "cincuenta", "sesenta", "setenta", "ochenta", "noventa"];
+    Some(match n {
+        0..=20 => NUMBERS[n].to_string(),
+        21..=29 => format!("veinti{}", NUMBERS[n - 20]),
+        30..=99 if n % 10 == 0 => TENS[n / 10].to_string(),
+        30..=99 => format!("{} y {}", TENS[n / 10], NUMBERS[n % 10]),
+        100 => "cien".to_string(),
+        _ => return None,
+    })
+}
+
+/// Lowercase, strip accents and punctuation.
 fn normalize(word: &str) -> String {
-    let w: String = word
-        .chars()
+    word.chars()
         .flat_map(char::to_lowercase)
         .filter_map(|c| match c {
             'á' | 'à' | 'ä' => Some('a'),
@@ -59,17 +71,20 @@ fn normalize(word: &str) -> String {
             c if c.is_alphanumeric() => Some(c),
             _ => None,
         })
-        .collect();
-    match w.parse::<usize>() {
-        Ok(n) if n < NUMBERS.len() => NUMBERS[n].to_string(),
-        _ => w,
-    }
+        .collect()
 }
 
-/// Split into (original, normalized) pairs, dropping pure punctuation.
+/// Split into (original, normalized) pairs, dropping pure punctuation. Whisper
+/// writes numbers as digits, so "35" becomes "treinta", "y", "cinco".
 fn tokens(text: &str) -> Vec<(String, String)> {
     text.split_whitespace()
-        .map(|w| (w.to_string(), normalize(w)))
+        .flat_map(|w| {
+            let n = normalize(w);
+            match n.parse::<usize>().ok().and_then(number_words) {
+                Some(words) => words.split(' ').map(|p| (w.to_string(), p.to_string())).collect(),
+                None => vec![(w.to_string(), n)],
+            }
+        })
         .filter(|(_, n)| !n.is_empty())
         .collect()
 }
@@ -104,7 +119,15 @@ pub fn same_words(a: &str, b: &str) -> bool {
 
 pub fn score(expected: &str, transcript: &str) -> DrillResult {
     let exp = tokens(expected);
-    let got = tokens(transcript);
+    let mut got = tokens(transcript);
+    // A digit 1 says nothing about gender: read it as whichever of un/una/uno is expected.
+    for (orig, n) in got.iter_mut() {
+        if n == "uno" && orig.chars().any(|c| c.is_ascii_digit()) {
+            if let Some((_, e)) = exp.iter().find(|(_, e)| matches!(e.as_str(), "un" | "una" | "uno")) {
+                *n = e.clone();
+            }
+        }
+    }
     let (n, m) = (exp.len(), got.len());
 
     // Word-level edit distance; substituting a close word costs less than a wrong one.
@@ -191,6 +214,10 @@ mod tests {
     fn digits_match_number_words() {
         let r = score("Nos vemos a las tres.", "Nos vemos a las 3.");
         assert_eq!(r.score, 100);
+        assert_eq!(score("Tengo treinta y cinco años.", "Tengo 35 años.").score, 100);
+        assert_eq!(score("Tengo veintidós años.", "Tengo 22 años.").score, 100);
+        assert_eq!(score("Un kilo de tomates.", "1 kilo de tomates.").score, 100);
+        assert_eq!(score("Es la una.", "Es la 1.").score, 100);
     }
 
     #[test]
