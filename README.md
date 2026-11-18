@@ -34,3 +34,7 @@ Debug: `murmur --file clip.wav` runs the pipeline on a 16 kHz mono WAV.
 - Per-app modes (terminal: no cleanup/literal; email: formal) via frontmost-app detection
 - Personal dictionary, history, configurable hotkey
 - iOS keyboard extension + Android IME sharing a Rust core
+
+## License
+
+MIT, see [LICENSE](LICENSE).
