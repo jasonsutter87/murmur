@@ -2,6 +2,7 @@
 name = "murmur"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
 description = "Hold-to-talk dictation: speak, and clean text lands wherever your cursor is."
 
 [dependencies]
